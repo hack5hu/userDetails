@@ -11,10 +11,13 @@ const {
   FindUser,
   FindUserById,
   Auth,
+  FindUsersByFilter,
+  getStudentBySchoolID,
 } = require("./controller/userController");
 const Joi = require("joi");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
+const { CreateSchool, getSchool } = require("./controller/schoolController");
 dot.config();
 const app = express();
 
@@ -50,7 +53,8 @@ app.post("/create", async (req, res) => {
       email: Joi.string().email().required(),
       name: Joi.string().min(2).required(),
       password: Joi.string().max(20).min(8).required(),
-      age: Joi.number().max(99).min(10),
+      age: Joi.number().max(99),
+      schoolId: Joi.string().min(2).required(),
     });
     const validatedData = await schema.validateAsync(req.body);
     console.log(validatedData);
@@ -95,10 +99,10 @@ app.get("/getUsers", async (req, res) => {
 
 app.get("/getUsersById/:id", async (req, res) => {
   try {
-    let data
+    let data;
     if (req.session && req.session.user) {
       if (req.params.id === req.session.user.uid) {
-      data = await FindUserById(req.params.id);
+        data = await FindUserById(req.params.id);
       } else
         throw new Error(
           "unauthenticated user, trying to access another account"
@@ -114,17 +118,68 @@ app.get("/getUsersById/:id", async (req, res) => {
   }
 });
 
-app.post('/logout',(req, res)=>{
+app.get("/getUsersByFilter", async (req, res) => {
   try {
-    req.session.destroy(()=>{})
+    console.log(req.query);
+    const data = await FindUsersByFilter(req.query.filterBy, req.query.value);
+    res.status(200).send({ message: data, status: true });
+  } catch (e) {
+    console.log(e);
+    res.status(404).send({ message: e, status: false });
+  }
+});
+
+app.post("/logout", (req, res) => {
+  try {
+    req.session.destroy(() => {});
     res.status(200).send({
-      message: 'user is logged out successfullyyy!!!!!!!!!!',
+      message: "user is logged out successfullyyy!!!!!!!!!!",
       status: true,
     });
   } catch (e) {
     res.status(404).send({ message: e.message, status: false });
   }
-})
+});
+
+app.post("/createSchool", async (req, res) => {
+  // console.log(req.body);
+  try {
+    const schema = Joi.object({
+      name: Joi.string().min(2).required(),
+      address: Joi.string(),
+    });
+    const validatedData = await schema.validateAsync(req.body);
+    console.log(validatedData);
+    const data = await CreateSchool(req.body);
+    res.status(200).send({ message: data, status: true });
+  } catch (e) {
+    res.status(404).send({ message: e, status: false });
+  }
+});
+
+app.get("/getschool", async (req, res) => {
+  try {
+    const data = await getSchool();
+    res.status(200).send({ message: data, status: true, data:'data' });
+  } catch (e) {
+    console.log(e);
+    res.status(404).send({ message: e, status: false });
+  }
+});
+
+
+
+app.get("/getStudentBySchoolID/:schoolId", async (req, res) => {
+  try {
+    // const data = await users.create(req.body);
+    const data = await getStudentBySchoolID (req.params.schoolId);
+    res.status(200).send({ message: data, status: true, data: "data" });
+  } catch (e) {
+    console.log(e);
+    res.status(404).send({ message: e, status: false });
+  }
+});
+
 
 app.all("/", (req, res) => {
   res.status(200).send({ message: "SERVER IS LIVE!!!", status: true });
